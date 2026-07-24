@@ -76,7 +76,7 @@ export type UseSelectorWithState<T, C> = {
   waitingValueTo: <K extends keyof UnwrapNestedRefs<T> = keyof UnwrapNestedRefs<T>>(params: {
     key: K;
     value: UnwrapNestedRefs<T>[K];
-    single: AbortSignal;
+    single?: AbortSignal;
     compare?: (exist: UnwrapNestedRefs<T>[K], target: UnwrapNestedRefs<T>[K]) => boolean;
   }) => Promise<void>;
   /**
