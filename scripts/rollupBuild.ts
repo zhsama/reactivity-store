@@ -2,6 +2,22 @@
 import { rollupBuild } from "project-tool/rollup";
 
 import { generateExternal } from "./rollupExternal";
+import { isOctaneRuntimeBuild, withOctaneServerRuntime } from "./rollupPlugins";
+
+type BuildPlugin = NonNullable<NonNullable<Parameters<typeof rollupBuild>[0]["plugins"]>["singleOther"]>;
+
+const withBuildPlugins: BuildPlugin = ({ defaultPlugins, defaultPluginPackages: { replace, terser }, defaultPluginProps: { options } }) => {
+  const plugins = withOctaneServerRuntime(
+    [
+      ...defaultPlugins,
+      replace({
+        __VUE_VERSION__: JSON.stringify(require("@vue/reactivity/package.json").version),
+      }),
+    ],
+    options.output
+  );
+  return isOctaneRuntimeBuild(options.output) ? [...plugins, terser()] : plugins;
+};
 
 const start = async () => {
   await rollupBuild({
@@ -11,14 +27,7 @@ const start = async () => {
       generateExternal,
     },
     plugins: {
-      singleOther: ({ defaultPlugins, defaultPluginPackages: { replace } }) => {
-        return [
-          ...defaultPlugins,
-          replace({
-            __VUE_VERSION__: JSON.stringify(require("@vue/reactivity/package.json").version),
-          }),
-        ];
-      },
+      singleOther: withBuildPlugins,
       multipleDevUMD: ({ defaultPlugins, defaultPluginPackages: { replace } }) => {
         return [
           ...defaultPlugins,

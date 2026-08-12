@@ -24,8 +24,10 @@
     },
     "./octane": {
       "types": "./dist/octane/index.d.ts",
-      "import": "./dist/octane/index.mjs",
-      "default": "./dist/octane/index.mjs"
+      "browser": "./dist/octane/client.mjs",
+      "node": "./dist/octane/server.mjs",
+      "import": "./dist/octane/client.mjs",
+      "default": "./dist/octane/client.mjs"
     },
     "./package.json": "./package.json",
     "./*": "./*"
@@ -79,8 +81,20 @@
       "output": [
         {
           "dir": "./dist",
-          "entryFileNames": "octane/index.mjs",
-          "format": "esm"
+          "entryFileNames": "octane/client.mjs",
+          "format": "esm",
+          "compact": true
+        }
+      ]
+    },
+    {
+      "input": "./src/octane/index.ts",
+      "output": [
+        {
+          "dir": "./dist",
+          "entryFileNames": "octane/server.mjs",
+          "format": "esm",
+          "compact": true
         }
       ]
     }
