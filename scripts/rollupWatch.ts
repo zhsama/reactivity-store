@@ -1,9 +1,12 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 import { rollupWatch } from "project-tool/rollup";
 
+import { generateExternal } from "./rollupExternal";
+
 rollupWatch({
   packageName: "r-store",
   packageScope: "packages",
+  external: { generateExternal },
   plugins: {
     singleOther: ({ defaultPlugins, defaultPluginPackages: { replace } }) => {
       return [

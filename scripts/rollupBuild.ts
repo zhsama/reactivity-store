@@ -1,10 +1,15 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 import { rollupBuild } from "project-tool/rollup";
 
+import { generateExternal } from "./rollupExternal";
+
 const start = async () => {
   await rollupBuild({
     packageName: "r-store",
     packageScope: "packages",
+    external: {
+      generateExternal,
+    },
     plugins: {
       singleOther: ({ defaultPlugins, defaultPluginPackages: { replace } }) => {
         return [
