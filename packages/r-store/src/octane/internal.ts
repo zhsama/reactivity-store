@@ -1,5 +1,18 @@
 const subSlotCache = new Map<symbol, Map<string, symbol>>();
-const bareSlotCache = new Map<string, symbol>();
+
+let bareSlotCount = 0;
+
+/**
+ * Fallback slot root for a store whose hooks are invoked without a compiler
+ * slot. Octane resolves composed hook paths from slot DESCRIPTIONS (see
+ * `resolveSlot`), so the description must be globally unique per store —
+ * otherwise two stores would silently share hook state inside one component.
+ *
+ * @internal
+ */
+export function createBareSlotRoot(name: string): symbol {
+  return Symbol(`reactivity-store/octane:${name}#${bareSlotCount++}`);
+}
 
 /**
  * Octane identifies hooks by compiler-provided call-site slots. A composed hook
@@ -7,16 +20,7 @@ const bareSlotCache = new Map<string, symbol>();
  *
  * @internal
  */
-export function subSlot(slot: symbol | undefined, tag: string): symbol {
-  if (slot === undefined) {
-    let child = bareSlotCache.get(tag);
-    if (child === undefined) {
-      child = Symbol.for(`reactivity-store/octane:${tag}`);
-      bareSlotCache.set(tag, child);
-    }
-    return child;
-  }
-
+export function subSlot(slot: symbol, tag: string): symbol {
   let children = subSlotCache.get(slot);
   if (children === undefined) {
     children = new Map();

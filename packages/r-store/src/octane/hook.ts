@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-unsafe-function-type */
 import { toRaw, watch } from "@vue/reactivity";
 import { isPromise } from "@vue/shared";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "octane";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "octane";
 
 import { Controller } from "../shared/controller";
 import { InternalNameSpace, isServer } from "../shared/env";
 
-import { splitSlot, subSlot } from "./internal";
+import { createBareSlotRoot, splitSlot, subSlot } from "./internal";
 import { traverse, traverseShallow } from "./traverse";
 
 import type { LifeCycle } from "../shared/lifeCycle";
@@ -47,14 +47,14 @@ type OctaneSelectorHook<T extends Record<string, unknown>, C extends Record<stri
 };
 
 /** @internal */
-export const useCallbackRef = <T extends Function>(callback: T, slot?: symbol) => {
+export const useCallbackRef = <T extends Function>(callback: T, slot: symbol) => {
   const callbackRef = useRef(callback, subSlot(slot, "callback-ref"));
   callbackRef.current = callback;
 
   return useCallback((...args: any[]) => callbackRef.current?.call(null, ...args), [], subSlot(slot, "callback")) as unknown as T;
 };
 
-const useSubscribeCallbackRef = <T, K>(callback: ((arg: T) => K) | undefined, deepSelector: boolean, slot?: symbol) => {
+const useSubscribeCallbackRef = <T, K>(callback: ((arg: T) => K) | undefined, deepSelector: boolean, slot: symbol) => {
   const callbackRef = useRef<Function | null>(null, subSlot(slot, "subscribe-ref"));
   callbackRef.current = typeof callback === "function" ? callback : null;
 
@@ -75,7 +75,7 @@ const useSubscribeCallbackRef = <T, K>(callback: ((arg: T) => K) | undefined, de
   );
 };
 
-const usePrevValue = <T>(value: T, slot?: symbol) => {
+const usePrevValue = <T>(value: T, slot: symbol) => {
   const valueRef = useRef(value, subSlot(slot, "previous-ref"));
   useEffect(
     () => {
@@ -107,12 +107,52 @@ export const createHook = <T extends Record<string, unknown>, C extends Record<s
   let name = namespace !== InternalNameSpace.$$__ignore__$$ ? namespace : "RStoreAnonymous";
   name = name.startsWith("use") ? name : `use${name.charAt(0).toUpperCase()}${name.slice(1)}`;
 
+  const bareSlotRoot = createBareSlotRoot(name);
+
+  // Two slotless call sites of one store in the same component scope resolve
+  // identical fallback slots and would silently share hook state. Call sites
+  // cannot be told apart without compiler slots, so production keeps the
+  // shared fallback while development fails as loudly as octane's own
+  // missing-slot error when the fallback is claimed twice in one render.
+  // # Reason: the claim counter is reset through a microtask (covers renders
+  // that abort with an error) and a layout effect (covers back-to-back
+  // synchronous renders, e.g. two flushSync calls in one event handler).
+  const useBareSlotClaimGuard = (tag: string) => {
+    const claimsRef = useRef({ count: 0, pending: false }, subSlot(bareSlotRoot, `${tag}:bare-claims`));
+    const claims = claimsRef.current;
+    claims.count++;
+    if (claims.count > 1) {
+      claims.count = 0;
+      throw new Error(
+        `[reactivity-store/octane] '${name}' was called multiple times without a hook slot in a single component render, these calls would share the same internal state. Name the store binding with a 'use' prefix so the Octane compiler assigns each call site a slot, or pass an explicit slot symbol as the last argument`
+      );
+    }
+    if (!claims.pending) {
+      claims.pending = true;
+      queueMicrotask(() => {
+        claims.pending = false;
+        claims.count = 0;
+      });
+    }
+    if (!isServer) {
+      useLayoutEffect(
+        () => {
+          claims.count = 0;
+        },
+        null,
+        subSlot(bareSlotRoot, `${tag}:bare-claims-reset`)
+      );
+    }
+  };
+
   const generateUseHook = (type: "default" | "deep" | "deep-stable" | "shallow" | "shallow-stable") => {
     const currentIsDeep = type === "default" ? deepSelector : type === "deep" || type === "deep-stable";
     const currentIsStable = type === "default" ? stableSelector : type === "deep-stable" || type === "shallow-stable";
 
     function useReactiveHookWithSelector<P>(...rest: [selector?: Selector<T, C, P>, compare?: (prev: P, next: P) => boolean, slot?: symbol]) {
-      const [userArgs, slot] = splitSlot(rest);
+      const [userArgs, callerSlot] = splitSlot(rest);
+      if (__DEV__ && callerSlot === undefined) useBareSlotClaimGuard(type);
+      const slot = callerSlot ?? bareSlotRoot;
       const selector = userArgs[0] as Selector<T, C, P> | undefined;
       const compare = userArgs[1] as ((prev: P, next: P) => boolean) | undefined;
       const selectedRef = useRef<P | DeepReadonly<UnwrapNestedRefs<T>> | undefined>(undefined, subSlot(slot, `${type}:selected`));
@@ -199,7 +239,9 @@ export const createHook = <T extends Record<string, unknown>, C extends Record<s
   };
 
   const useLifeCycle = (...rest: [slot?: symbol]) => {
-    const [, slot] = splitSlot(rest);
+    const [, callerSlot] = splitSlot(rest);
+    if (__DEV__ && callerSlot === undefined) useBareSlotClaimGuard("lifecycle");
+    const slot = callerSlot ?? bareSlotRoot;
     const [isMount, setIsMount] = useState(false, subSlot(slot, "lifecycle:state"));
 
     useEffect(

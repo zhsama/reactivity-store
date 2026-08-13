@@ -9,7 +9,7 @@
     "skipLibCheck": true,
     "declaration": true,
     "emitDeclarationOnly": true,
-    "declarationDir": "./dist/octane",
+    "declarationDir": "./dist/octane-types",
     "types": ["node"]
   },
   "include": ["./src/octane/**/*.ts", "./global.d.ts"]

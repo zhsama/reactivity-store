@@ -7,6 +7,7 @@
   "octane": {
     "hookSlots": {
       "manual": [
+        "dist/octane",
         "src/octane"
       ]
     }

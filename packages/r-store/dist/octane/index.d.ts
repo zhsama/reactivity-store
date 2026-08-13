@@ -2,6 +2,21 @@ import type { DeepReadonly } from '@vue/reactivity';
 import type { UnwrapNestedRefs } from '@vue/reactivity';
 
 /**
+ * @public
+ *
+ * Configure environment settings for non-browser usage (terminal UI frameworks, etc.)
+ *
+ * @example
+ * ```ts
+ * import { configureEnv } from 'reactivity-store';
+ *
+ * // Enable for terminal UI frameworks
+ * configureEnv({ allowNonBrowserUpdates: true });
+ * ```
+ */
+export declare function configureEnv(options: Partial<EnvConfigOptions>): void;
+
+/**
  * Creates a Vue-reactivity-backed store whose selector hook runs on Octane.
  * The returned store API matches the React entry point.
  *
@@ -11,6 +26,24 @@ export declare const createStore: <T extends Record<string, unknown>>(creator: C
 
 /** @public */
 export declare type Creator<T extends Record<string, unknown>> = () => T;
+
+/**
+ * @public
+ *
+ * Environment configuration options for non-browser usage
+ */
+export declare interface EnvConfigOptions {
+    /**
+     * When true, suppresses warnings about state updates in non-browser environments.
+     * Set to true for terminal UI frameworks.
+     */
+    allowNonBrowserUpdates: boolean;
+    /**
+     * When true, enables persistence even without browser localStorage.
+     * Requires custom storage via getStorage option.
+     */
+    allowCustomStorage: boolean;
+}
 
 /**
  * @public

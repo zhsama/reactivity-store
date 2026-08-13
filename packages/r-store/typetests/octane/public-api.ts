@@ -1,4 +1,7 @@
-import { createStore, ref, type Ref, type UseSelectorWithStore } from "reactivity-store/octane";
+import { configureEnv, createStore, ref, type EnvConfigOptions, type Ref, type UseSelectorWithStore } from "reactivity-store/octane";
+
+const envOptions: Partial<EnvConfigOptions> = { allowNonBrowserUpdates: true };
+configureEnv(envOptions);
 
 const count: Ref<number> = ref(0);
 const store = createStore(() => ({ count }));
